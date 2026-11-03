@@ -33,3 +33,13 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# build
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
+# موارد تُنزَّل في CI ولا تُرفع
+androidApp/src/main/assets/tessdata/
+desktopApp/resources/
