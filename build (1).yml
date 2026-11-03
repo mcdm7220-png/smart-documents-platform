@@ -1,0 +1,56 @@
+name: Build APK and EXE
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+env:
+  TESS_BASE: https://github.com/tesseract-ocr/tessdata_fast/raw/main
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack project from smart-documents-platform.zip
+        run: |
+          unzip -o smart-documents-platform.zip -d _src
+          cp -a _src/smart-documents-platform/. .
+          rm -rf _src
+          ls
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.10.2 }
+      - name: Tesseract language data (ara + eng)
+        run: |
+          mkdir -p androidApp/src/main/assets/tessdata
+          curl -fL -o androidApp/src/main/assets/tessdata/ara.traineddata $TESS_BASE/ara.traineddata
+          curl -fL -o androidApp/src/main/assets/tessdata/eng.traineddata $TESS_BASE/eng.traineddata
+      - run: gradle :androidApp:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with: { name: SmartDocuments-APK, path: androidApp/build/outputs/apk/debug/*.apk }
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack project from smart-documents-platform.zip
+        shell: bash
+        run: |
+          unzip -o smart-documents-platform.zip -d _src
+          cp -a _src/smart-documents-platform/. .
+          rm -rf _src
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: 8.10.2 }
+      - name: Bundle Tesseract (exe + ara/eng)
+        shell: bash
+        run: |
+          choco install tesseract -y --no-progress
+          mkdir -p desktopApp/resources/windows/tesseract/tessdata
+          cp -r "/c/Program Files/Tesseract-OCR/." desktopApp/resources/windows/tesseract/
+          curl -fL -o desktopApp/resources/windows/tesseract/tessdata/ara.traineddata $TESS_BASE/ara.traineddata
+          curl -fL -o desktopApp/resources/windows/tesseract/tessdata/eng.traineddata $TESS_BASE/eng.traineddata
+      - run: gradle :desktopApp:packageExe --stacktrace
+      - uses: actions/upload-artifact@v4
+        with: { name: SmartDocuments-EXE, path: desktopApp/build/compose/binaries/main/exe/*.exe }
